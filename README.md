@@ -47,3 +47,12 @@ each definition into plain dictionaries, so the game can list, filter and save
 vehicles without depending on the library staying loaded.
 
 See `open-fdv-dev/docs/mod.md` for the authoring side.
+
+## Contributing
+
+Maintainers push to `main` in this repository directly. Everyone else forks and
+opens a pull request against `main`.
+
+The game pins this repository's `main` through a submodule
+(`Fatal-Delivery/vehicle`), so a merge here reaches the game on the next pointer
+bump — there is no second copy of the module inside the game repository.
