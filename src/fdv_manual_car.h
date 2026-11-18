@@ -101,6 +101,9 @@ public:
     [[nodiscard]] auto get_speed_kmh() const -> double;
     // The steering wheel itself, owned by the core and clamped at full lock.
     [[nodiscard]] auto get_steer_angle() const -> double;
+    // True after a grind: the gear registered but the drivetrain is open
+    // until the clutch is pressed again.
+    [[nodiscard]] auto get_drivetrain_open() const -> bool;
     // Sideways velocity in the car's frame: the drift. Positive is left.
     [[nodiscard]] auto get_lateral_speed() const -> double;
     [[nodiscard]] auto is_engine_failed() const -> bool;

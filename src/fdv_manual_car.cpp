@@ -47,6 +47,7 @@ auto fdv::ManualCar::_bind_methods() -> void {
     ADD_PROPERTY(godot::PropertyInfo(godot::Variant::BOOL, "handbrake"), "set_handbrake", "get_handbrake");
 
     godot::ClassDB::bind_method(godot::D_METHOD("get_steer_angle"), &ManualCar::get_steer_angle);
+    godot::ClassDB::bind_method(godot::D_METHOD("get_drivetrain_open"), &ManualCar::get_drivetrain_open);
     godot::ClassDB::bind_method(godot::D_METHOD("get_lateral_speed"), &ManualCar::get_lateral_speed);
     godot::ClassDB::bind_method(godot::D_METHOD("shift_gear", "gear"), &ManualCar::shift_gear);
 
@@ -316,6 +317,10 @@ auto fdv::ManualCar::get_speed_kmh() const -> double {
 
 auto fdv::ManualCar::get_steer_angle() const -> double {
     return car_state.steer_angle;
+}
+
+auto fdv::ManualCar::get_drivetrain_open() const -> bool {
+    return car_state.drivetrain_open != 0;
 }
 
 auto fdv::ManualCar::get_lateral_speed() const -> double {
