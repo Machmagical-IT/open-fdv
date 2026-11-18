@@ -6,6 +6,8 @@
 
 import os
 
+from SCons.Errors import UserError
+
 env = SConscript("godot-cpp/SConstruct")
 
 # Clone so our toolchain tweaks (C++20) don't disturb godot-cpp's own targets.
@@ -38,7 +40,7 @@ env.Append(CXXFLAGS=["-std=c++20"])
 core_dirs = ["../shared", "../Fatal-Delivery/shared"]
 core = next((d for d in core_dirs if os.path.isdir(d)), None)
 if core is None:
-    raise SCons.Errors.UserError(
+    raise UserError(
         "fd_core not found (looked in %s). open-fdv needs the closed "
         "Fatal-Delivery checkout that provides shared/." % ", ".join(core_dirs)
     )
@@ -54,11 +56,17 @@ env.Append(CPPPATH=[core + "/include"])
 # open-fdv-dev a submodule of this repo would collapse this to one path; until
 # then the probe keeps both layouts working.
 sdk_dirs = ["../open-fdv-dev/include", "../../open-fdv-dev/include"]
-if "FD_SDK_INCLUDE" in ARGUMENTS:
-    sdk_dirs = [ARGUMENTS["FD_SDK_INCLUDE"]]
+# Both forms are supported on purpose: `scons FD_SDK_INCLUDE=...` for a one-off
+# build, and the environment variable for CI, where the SDK is checked out to a
+# path the default probes cannot guess. Reading only ARGUMENTS (the scons
+# command line) silently ignored the environment, and the failure surfaced as a
+# NameError from the error-reporting line instead of "SDK not found".
+sdk_override = ARGUMENTS.get("FD_SDK_INCLUDE") or os.environ.get("FD_SDK_INCLUDE")
+if sdk_override:
+    sdk_dirs = [sdk_override]
 sdk = next((d for d in sdk_dirs if os.path.isdir(d)), None)
 if sdk is None:
-    raise SCons.Errors.UserError(
+    raise UserError(
         "open-fdv-dev SDK not found (looked in %s). Check the SDK out beside "
         "this repo, or pass FD_SDK_INCLUDE=<path>/include." % ", ".join(sdk_dirs)
     )
