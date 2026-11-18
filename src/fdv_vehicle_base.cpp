@@ -38,6 +38,10 @@ auto fdv::VehicleBase::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("adopt_authoritative", "state"),
                                 &VehicleBase::adopt_authoritative);
     godot::ClassDB::bind_method(godot::D_METHOD("is_remote"), &VehicleBase::is_remote);
+    godot::ClassDB::bind_method(godot::D_METHOD("resume_local_simulation"),
+                                &VehicleBase::resume_local_simulation);
+    godot::ClassDB::bind_method(godot::D_METHOD("adopt_pose", "position", "heading"),
+                                &VehicleBase::adopt_pose);
     godot::ClassDB::bind_method(godot::D_METHOD("set_colliders", "boxes"),
                                 &VehicleBase::set_colliders);
     godot::ClassDB::bind_method(godot::D_METHOD("get_collider_count"),
@@ -112,13 +116,31 @@ auto fdv::VehicleBase::reset_vehicle() -> void {
     vehicle_state = FdVehicle{};
     vehicle_state.x = static_cast<float>(get_global_position().x);
     vehicle_state.z = static_cast<float>(get_global_position().z);
-    vehicle_state.heading = static_cast<float>(get_global_rotation().y);
+    // The node's rotation is heading + pi, so converting back needs the same
+    // offset subtracted.
+    //
+    // Written as an explicit wrap rather than trusting the raw subtraction: at
+    // rotation 0 the node's heading is exactly -pi, and the core treats -pi and
+    // +pi as the same bearing. Subtracting without wrapping lands somewhere in
+    // (-2pi, 0], and a heading of -pi + delta then steers the scooter the
+    // opposite way from a heading of +pi + delta, which inverts A and D from
+    // the seat without changing anything else.
+    float h = static_cast<float>(get_global_rotation().y) - VehicleSim::kHeadingToNodeYaw;
+    while (h > static_cast<float>(3.14159265358979)) h -= static_cast<float>(6.283185307179586);
+    while (h < static_cast<float>(-3.14159265358979)) h += static_cast<float>(6.283185307179586);
+    vehicle_state.heading = h;
     vehicle_state.state = FD_VEH_UPRIGHT;
     speed_kmh = 0.0;
     sim.accum = 0.0;
     sim.remote = false;
     sim.last_impact = 0.0;
     sim.had_collision = false;
+    // Write the pose back immediately. Without this the node keeps whatever
+    // rotation it had while the core believes it faces the heading just
+    // computed, and the two only realign on the next step.
+    sim.mirror_pose(this, static_cast<float>(vehicle_state.x),
+                    static_cast<float>(vehicle_state.z),
+                    static_cast<float>(vehicle_state.heading));
 }
 
 auto fdv::VehicleBase::adopt_authoritative(const godot::Dictionary &p_state) -> void {
@@ -143,6 +165,11 @@ auto fdv::VehicleBase::adopt_authoritative(const godot::Dictionary &p_state) -> 
 
 auto fdv::VehicleBase::is_remote() const -> bool {
     return sim.remote;
+}
+
+auto fdv::VehicleBase::resume_local_simulation() -> void {
+    sim.remote = false;
+    sim.accum = 0.0;
 }
 
 auto fdv::VehicleBase::set_speed_kmh(double p_speed_kmh) -> void {
@@ -207,3 +234,24 @@ auto fdv::VehicleBase::get_vehicle_state() const -> int32_t {
 auto fdv::VehicleBase::get_lean() const -> double {
     return vehicle_state.lean;
 }
+
+auto fdv::VehicleBase::adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void {
+    vehicle_state.x = static_cast<float>(p_position.x);
+    vehicle_state.z = static_cast<float>(p_position.z);
+    // p_heading is the node's yaw, which is the core heading + pi.
+    vehicle_state.heading = static_cast<float>(p_heading)
+                            - static_cast<float>(VehicleSim::kHeadingToNodeYaw);
+    vehicle_state.speed = 0.0f;
+    vehicle_state.lateral_speed = 0.0f;
+    vehicle_state.lean = 0.0f;
+    vehicle_state.state = FD_VEH_UPRIGHT;
+    vehicle_state.state_timer = 0.0f;
+    speed_kmh = 0.0;
+    sim.accum = 0.0;
+    sim.remote = false;
+    sim.last_impact = 0.0;
+    sim.had_collision = false;
+    sim.mirror_pose(this, vehicle_state.x, vehicle_state.z, vehicle_state.heading);
+}
+
+

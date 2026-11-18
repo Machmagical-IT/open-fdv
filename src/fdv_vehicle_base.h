@@ -7,7 +7,7 @@
 #include <cmath>
 #include <type_traits>
 
-#include "fd_core.h"
+#include <fd_api.h>
 #include "fdv_vehicle_sim.h"
 
 namespace fdv {
@@ -91,6 +91,15 @@ public:
 
     // True while the node is following a host instead of simulating.
     [[nodiscard]] auto is_remote() const -> bool;
+
+    // Hand control back to the local simulation after adopt_authoritative().
+    // Used by callers that adopt a pose only to place the vehicle, and by any
+    // caller that takes ownership back from a host.
+    auto resume_local_simulation() -> void;
+
+    // Place the scooter at a world pose and stop it there. Used when the crew
+    // swaps vehicles.
+    auto adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void;
 
     // Static world collision. boxes is an Array of Dictionaries, each
     // {pos: Vector3, size: Vector3, kind: int}.

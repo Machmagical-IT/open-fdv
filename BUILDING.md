@@ -15,6 +15,24 @@ Godot 4 GDExtension (C++) module. Runtime wiring lives in `fdv.gdextension`.
 No other Python packages are required: godot-cpp's binding generator uses only
 the standard library.
 
+## 0. Dependencies beside this repo
+
+open-fdv does not vendor the two things it compiles against, so a checkout has
+to sit next to them:
+
+| Dependency | Provides | Submodule layout | Standalone layout |
+|---|---|---|---|
+| closed core (`shared/`) | `fd_core.h`, `fd_*.c` | `Fatal-Delivery/vehicle` → `../shared` | `<umbrella>/open-fdv` → `../Fatal-Delivery/shared` |
+| SDK (`open-fdv-dev`) | `fd_api.h`, the public vehicle ABI | `Fatal-Delivery/vehicle` → `../../open-fdv-dev` | `<umbrella>/open-fdv` → `../open-fdv-dev` |
+
+`SConstruct` probes both paths and stops with a message naming the paths it
+tried if either is missing. Pass `FD_SDK_INCLUDE=/path/to/include` to point the
+SDK somewhere else.
+
+The vehicle headers include `<fd_api.h>`; rules the game keeps closed (voice,
+box, orders, monster, mood) stay behind `fd_core.h`, which only
+`fdv_core_binding` includes.
+
 ## 1. Get godot-cpp (submodule, pinned to Godot 4.4.1)
 
 ```sh

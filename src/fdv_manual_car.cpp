@@ -1,5 +1,7 @@
 #include "fdv_manual_car.h"
 
+#include "fdv_tuning.h"
+
 #include <godot_cpp/core/class_db.hpp>
 
 auto fdv::ManualCar::_bind_methods() -> void {
@@ -44,19 +46,28 @@ auto fdv::ManualCar::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_speed_kmh"), &ManualCar::get_speed_kmh);
     godot::ClassDB::bind_method(godot::D_METHOD("is_engine_failed"), &ManualCar::is_engine_failed);
     godot::ClassDB::bind_method(godot::D_METHOD("get_events"), &ManualCar::get_events);
+    godot::ClassDB::bind_method(godot::D_METHOD("restart_engine"), &ManualCar::restart_engine);
 
     godot::ClassDB::bind_method(godot::D_METHOD("step", "delta"), &ManualCar::step);
     godot::ClassDB::bind_method(godot::D_METHOD("reset_car"), &ManualCar::reset_car);
     godot::ClassDB::bind_method(godot::D_METHOD("apply_tuning", "tuning"), &ManualCar::apply_tuning);
+    godot::ClassDB::bind_method(godot::D_METHOD("get_tuning"), &ManualCar::get_tuning);
 
     godot::ClassDB::bind_method(godot::D_METHOD("set_colliders", "boxes"), &ManualCar::set_colliders);
     godot::ClassDB::bind_method(godot::D_METHOD("get_collider_count"), &ManualCar::get_collider_count);
     godot::ClassDB::bind_method(godot::D_METHOD("get_last_impact"), &ManualCar::get_last_impact);
     godot::ClassDB::bind_method(godot::D_METHOD("get_had_collision"), &ManualCar::get_had_collision);
+    godot::ClassDB::bind_method(godot::D_METHOD("adopt_pose", "position", "heading"),
+                                &ManualCar::adopt_pose);
 }
 
 fdv::ManualCar::ManualCar() {
     fd_car_default_tuning(&car_state.tuning);
+    // Matches reset_car(): a car handed to a player is in first gear, not
+    // neutral, so pressing the throttle does something.
+    car_state.gear = FD_GEAR_1;
+    car_state.rpm = car_state.tuning.idle_rpm;
+    requested_gear = FD_GEAR_1;
 }
 
 auto fdv::ManualCar::_ready() -> void {
@@ -122,13 +133,27 @@ auto fdv::ManualCar::get_had_collision() const -> bool {
 }
 
 auto fdv::ManualCar::reset_car() -> void {
+    // Carry the tuning across the reset. Assigning a fresh FdCar zeroes the
+    // whole struct, tuning included, so a car that had been configured (or
+    // driven through a hot refresh) would come back with max_torque 0, idle_rpm
+    // 0 and a redline of 0 -- an engine that can never produce torque and
+    // reports redline the instant it turns over.
+    const FdCarTuning keep = car_state.tuning;
     car_state = FdCar{};
+    car_state.tuning = keep;
     car_state.x = static_cast<float>(get_global_position().x);
     car_state.z = static_cast<float>(get_global_position().z);
-    car_state.heading = static_cast<float>(get_global_rotation().y);
-    car_state.gear = FD_GEAR_NEUTRAL;
+    // The node's rotation is heading + pi; see VehicleSim::kHeadingToNodeYaw.
+    car_state.heading = static_cast<float>(get_global_rotation().y
+                                           - VehicleSim::kHeadingToNodeYaw);
+    /* First gear, not neutral. A car parked in neutral sits there revving when
+     * the player presses the throttle, which reads as "the car is broken"
+     * rather than "you need to select a gear": nobody gets into a car and
+     * leaves it in neutral. Neutral is still reachable with N, and reverse
+     * with R. */
+    car_state.gear = FD_GEAR_1;
     car_state.rpm = car_state.tuning.idle_rpm;
-    requested_gear = FD_GEAR_NEUTRAL;
+    requested_gear = FD_GEAR_1;
     throttle = 0.0;
     steer = 0.0;
     clutch = 0.0;
@@ -137,51 +162,22 @@ auto fdv::ManualCar::reset_car() -> void {
     sim.remote = false;
     sim.last_impact = 0.0;
     sim.had_collision = false;
+    sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
 }
 
 auto fdv::ManualCar::apply_tuning(const godot::Dictionary &p_tuning) -> void {
     // Build the next tuning as a partial override of the current one, then apply
     // it through the C ABI so the change is a single deterministic mutation the
     // replication protocol can sync. The runtime state is untouched.
-    FdCarTuning next = car_state.tuning;
-    if (p_tuning.has("max_torque")) {
-        next.max_torque = static_cast<float>(static_cast<double>(p_tuning["max_torque"]));
-    }
-    if (p_tuning.has("idle_rpm")) {
-        next.idle_rpm = static_cast<float>(static_cast<double>(p_tuning["idle_rpm"]));
-    }
-    if (p_tuning.has("redline_rpm")) {
-        next.redline_rpm = static_cast<float>(static_cast<double>(p_tuning["redline_rpm"]));
-    }
-    if (p_tuning.has("final_drive_ratio")) {
-        next.final_drive_ratio = static_cast<float>(static_cast<double>(p_tuning["final_drive_ratio"]));
-    }
-    if (p_tuning.has("gear_count")) {
-        next.gear_count = static_cast<int32_t>(static_cast<int64_t>(p_tuning["gear_count"]));
-    }
-    if (p_tuning.has("wheel_radius")) {
-        next.wheel_radius = static_cast<float>(static_cast<double>(p_tuning["wheel_radius"]));
-    }
-    if (p_tuning.has("mass")) {
-        next.mass = static_cast<float>(static_cast<double>(p_tuning["mass"]));
-    }
-    if (p_tuning.has("drag")) {
-        next.drag = static_cast<float>(static_cast<double>(p_tuning["drag"]));
-    }
-    if (p_tuning.has("steer_rate")) {
-        next.steer_rate = static_cast<float>(static_cast<double>(p_tuning["steer_rate"]));
-    }
-    if (p_tuning.has("gear_ratios")) {
-        const godot::Array ratios = p_tuning["gear_ratios"];
-        const int n = ratios.size();
-        for (int i = 0; i < 6; i++) {
-            next.gear_ratios[i] = i < n ? static_cast<float>(static_cast<double>(ratios[i])) : 0.0f;
-        }
-    }
+    const FdCarTuning next = tuning_override(car_state.tuning, p_tuning);
     fd_car_apply_tuning(&car_state, &next);
     if (p_tuning.has("mouse_dpi")) {
         mouse_dpi = static_cast<double>(p_tuning["mouse_dpi"]);
     }
+}
+
+auto fdv::ManualCar::get_tuning() const -> godot::Dictionary {
+    return tuning_to_dictionary(car_state.tuning);
 }
 
 auto fdv::ManualCar::set_max_torque(double p_torque) -> void {
@@ -303,3 +299,33 @@ auto fdv::ManualCar::is_engine_failed() const -> bool {
 auto fdv::ManualCar::get_events() const -> int32_t {
     return car_state.events;
 }
+
+auto fdv::ManualCar::adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void {
+    car_state.x = static_cast<float>(p_position.x);
+    car_state.z = static_cast<float>(p_position.z);
+    // p_heading is the node's yaw, which is the core heading + pi.
+    car_state.heading = static_cast<float>(p_heading) - static_cast<float>(VehicleSim::kHeadingToNodeYaw);
+    car_state.speed = 0.0f;
+    car_state.rpm = car_state.tuning.idle_rpm;
+    car_state.gear = FD_GEAR_1;
+    car_state.events = FD_CAR_EVENT_NONE;
+    requested_gear = FD_GEAR_1;
+    throttle = 0.0;
+    steer = 0.0;
+    clutch = 0.0;
+    speed_kmh = 0.0;
+    sim.accum = 0.0;
+    sim.remote = false;
+    sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
+}
+
+auto fdv::ManualCar::restart_engine() -> void {
+    fd_car_restart(&car_state);
+    requested_gear = car_state.gear;
+    throttle = 0.0;
+    clutch = 0.0;
+    speed_kmh = 0.0;
+    sim.accum = 0.0;
+}
+
+

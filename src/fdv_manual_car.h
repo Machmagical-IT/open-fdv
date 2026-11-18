@@ -5,7 +5,7 @@
 #include <godot_cpp/core/binder_common.hpp>
 #include <godot_cpp/variant/packed_float32_array.hpp>
 
-#include "fd_core.h"
+#include <fd_api.h>
 #include "fdv_vehicle_sim.h"
 
 namespace fdv {
@@ -96,8 +96,17 @@ public:
     [[nodiscard]] auto is_engine_failed() const -> bool;
     [[nodiscard]] auto get_events() const -> int32_t;
 
+    // Clear a failed engine and set off again. Position and heading are kept;
+    // gear goes to neutral and speed to zero.
+    auto restart_engine() -> void;
+
     [[nodiscard]] auto step(double p_delta) -> bool;
     auto reset_car() -> void;
+
+    // Place the car at a world pose and stop it there, keeping the tuning.
+    // Used when the crew swaps vehicles: the car must appear where they got
+    // out, not wherever it was last parked.
+    auto adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void;
 
     // Hot refresh: apply a full tuning without touching runtime state (speed,
     // rpm, steering, position, gear). The tuning struct is rewritten in place
@@ -106,6 +115,12 @@ public:
     // drive. Script-agnostic: the caller hands in the values; re-reading the
     // config script is the business layer's job.
     auto apply_tuning(const godot::Dictionary &p_tuning) -> void;
+
+    // The active tuning, in the same shape apply_tuning() accepts. The
+    // counterpart exists so an effect can snapshot what it is about to change
+    // and put it back exactly -- without mirroring the core's default numbers
+    // in GDScript, where they would drift the next time the car is retuned.
+    [[nodiscard]] auto get_tuning() const -> godot::Dictionary;
 
     // Static world collision, delegated to the shared component.
     auto set_colliders(const godot::Array &p_boxes) -> void;

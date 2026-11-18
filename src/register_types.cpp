@@ -8,6 +8,7 @@
 
 #include "fdv_core_binding.h"
 #include "fdv_manual_car.h"
+#include "fdv_mod_loader.h"
 #include "fdv_vehicle_base.h"
 
 namespace fdv {
@@ -20,6 +21,7 @@ auto initialize_module(godot::ModuleInitializationLevel p_level) -> void {
     GDREGISTER_CLASS(VehicleBase);
     GDREGISTER_CLASS(ManualCar);
     GDREGISTER_CLASS(FdvCore);
+    GDREGISTER_CLASS(FdModLoader);
 }
 
 auto terminate_module(godot::ModuleInitializationLevel p_level) -> void {
