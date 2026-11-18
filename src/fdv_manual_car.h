@@ -99,6 +99,8 @@ public:
     [[nodiscard]] auto get_rpm() const -> double;
     [[nodiscard]] auto get_gear() const -> int32_t;
     [[nodiscard]] auto get_speed_kmh() const -> double;
+    // The steering wheel itself, owned by the core and clamped at full lock.
+    [[nodiscard]] auto get_steer_angle() const -> double;
     // Sideways velocity in the car's frame: the drift. Positive is left.
     [[nodiscard]] auto get_lateral_speed() const -> double;
     [[nodiscard]] auto is_engine_failed() const -> bool;

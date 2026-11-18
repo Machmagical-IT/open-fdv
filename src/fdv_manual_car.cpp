@@ -46,6 +46,7 @@ auto fdv::ManualCar::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_handbrake"), &ManualCar::get_handbrake);
     ADD_PROPERTY(godot::PropertyInfo(godot::Variant::BOOL, "handbrake"), "set_handbrake", "get_handbrake");
 
+    godot::ClassDB::bind_method(godot::D_METHOD("get_steer_angle"), &ManualCar::get_steer_angle);
     godot::ClassDB::bind_method(godot::D_METHOD("get_lateral_speed"), &ManualCar::get_lateral_speed);
     godot::ClassDB::bind_method(godot::D_METHOD("shift_gear", "gear"), &ManualCar::shift_gear);
 
@@ -193,7 +194,12 @@ auto fdv::ManualCar::apply_tuning(const godot::Dictionary &p_tuning) -> void {
 }
 
 auto fdv::ManualCar::get_tuning() const -> godot::Dictionary {
-    return tuning_to_dictionary(car_state.tuning);
+    godot::Dictionary d = tuning_to_dictionary(car_state.tuning);
+    // DPI is a host input ratio, not a core field: the core has no mouse. It
+    // rides in the tuning dictionary so chaos can snapshot/restore it with
+    // every other tunable instead of special-casing it.
+    d["mouse_dpi"] = mouse_dpi;
+    return d;
 }
 
 auto fdv::ManualCar::set_max_torque(double p_torque) -> void {
@@ -306,6 +312,10 @@ auto fdv::ManualCar::get_gear() const -> int32_t {
 
 auto fdv::ManualCar::get_speed_kmh() const -> double {
     return speed_kmh;
+}
+
+auto fdv::ManualCar::get_steer_angle() const -> double {
+    return car_state.steer_angle;
 }
 
 auto fdv::ManualCar::get_lateral_speed() const -> double {
