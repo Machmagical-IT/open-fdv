@@ -1,5 +1,7 @@
 #include "fdv_manual_car.h"
 
+#include <cmath>
+
 #include "fdv_tuning.h"
 
 #include <godot_cpp/core/class_db.hpp>
@@ -39,6 +41,12 @@ auto fdv::ManualCar::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_steer"), &ManualCar::get_steer);
     godot::ClassDB::bind_method(godot::D_METHOD("set_clutch", "clutch"), &ManualCar::set_clutch);
     godot::ClassDB::bind_method(godot::D_METHOD("get_clutch"), &ManualCar::get_clutch);
+
+    godot::ClassDB::bind_method(godot::D_METHOD("set_handbrake", "handbrake"), &ManualCar::set_handbrake);
+    godot::ClassDB::bind_method(godot::D_METHOD("get_handbrake"), &ManualCar::get_handbrake);
+    ADD_PROPERTY(godot::PropertyInfo(godot::Variant::BOOL, "handbrake"), "set_handbrake", "get_handbrake");
+
+    godot::ClassDB::bind_method(godot::D_METHOD("get_lateral_speed"), &ManualCar::get_lateral_speed);
     godot::ClassDB::bind_method(godot::D_METHOD("shift_gear", "gear"), &ManualCar::shift_gear);
 
     godot::ClassDB::bind_method(godot::D_METHOD("get_rpm"), &ManualCar::get_rpm);
@@ -96,6 +104,7 @@ auto fdv::ManualCar::step(double p_delta) -> bool {
         input.steer = static_cast<float>(steer);
         input.clutch = static_cast<float>(clutch);
         input.requested_gear = requested_gear;
+        input.handbrake = handbrake ? 1 : 0;
 
         if (fd_car_step(&car_state, &input, FD_VEH_FIXED_DT) != FD_OK) {
             break;
@@ -110,7 +119,13 @@ auto fdv::ManualCar::step(double p_delta) -> bool {
     }
 
     if (advanced) {
-        speed_kmh = car_state.speed * 3.6;
+        // The HUD and the box/noise rules care about how fast the car is
+        // actually moving, not just its forward component; a drift is speed
+        // too. Keep the sign so reverse still reads negative.
+        const double total = std::sqrt(
+            static_cast<double>(car_state.speed) * car_state.speed +
+            static_cast<double>(car_state.lateral_speed) * car_state.lateral_speed);
+        speed_kmh = (car_state.speed < 0.0f ? -total : total) * 3.6;
         sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
     }
     return advanced;
@@ -157,6 +172,7 @@ auto fdv::ManualCar::reset_car() -> void {
     throttle = 0.0;
     steer = 0.0;
     clutch = 0.0;
+    handbrake = false;
     speed_kmh = 0.0;
     sim.accum = 0.0;
     sim.remote = false;
@@ -292,6 +308,18 @@ auto fdv::ManualCar::get_speed_kmh() const -> double {
     return speed_kmh;
 }
 
+auto fdv::ManualCar::get_lateral_speed() const -> double {
+    return car_state.lateral_speed;
+}
+
+auto fdv::ManualCar::set_handbrake(bool p_handbrake) -> void {
+    handbrake = p_handbrake;
+}
+
+auto fdv::ManualCar::get_handbrake() const -> bool {
+    return handbrake;
+}
+
 auto fdv::ManualCar::is_engine_failed() const -> bool {
     return car_state.engine_failed != 0;
 }
@@ -313,6 +341,7 @@ auto fdv::ManualCar::adopt_pose(const godot::Vector3 &p_position, double p_headi
     throttle = 0.0;
     steer = 0.0;
     clutch = 0.0;
+    handbrake = false;
     speed_kmh = 0.0;
     sim.accum = 0.0;
     sim.remote = false;

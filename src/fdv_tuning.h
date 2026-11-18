@@ -31,6 +31,8 @@ inline auto tuning_to_dictionary(const FdCarTuning &p_tuning) -> godot::Dictiona
     d["mass"] = p_tuning.mass;
     d["drag"] = p_tuning.drag;
     d["steer_rate"] = p_tuning.steer_rate;
+    d["grip"] = p_tuning.grip;
+    d["handbrake_grip"] = p_tuning.handbrake_grip;
     return d;
 }
 
@@ -66,6 +68,12 @@ inline auto tuning_override(const FdCarTuning &p_current,
     }
     if (p_overrides.has("steer_rate")) {
         next.steer_rate = static_cast<float>(static_cast<double>(p_overrides["steer_rate"]));
+    }
+    if (p_overrides.has("grip")) {
+        next.grip = static_cast<float>(static_cast<double>(p_overrides["grip"]));
+    }
+    if (p_overrides.has("handbrake_grip")) {
+        next.handbrake_grip = static_cast<float>(static_cast<double>(p_overrides["handbrake_grip"]));
     }
     if (p_overrides.has("gear_ratios")) {
         const godot::Array ratios = p_overrides["gear_ratios"];

@@ -36,6 +36,7 @@ class ManualCar : public godot::Node3D {
     double throttle = 0.0;
     double steer = 0.0;
     double clutch = 0.0;
+    bool handbrake = false;
     int32_t requested_gear = FD_GEAR_NEUTRAL;
 
     double speed_kmh = 0.0;
@@ -85,6 +86,11 @@ public:
     auto set_clutch(double p_clutch) -> void;
     [[nodiscard]] auto get_clutch() const -> double;
 
+    // Locks the rear: less lateral grip, more yaw, scrubs speed. Held state,
+    // not an edge; the core reads it every step.
+    auto set_handbrake(bool p_handbrake) -> void;
+    [[nodiscard]] auto get_handbrake() const -> bool;
+
     // Request a gear change (1..5, 0 neutral, -1 reverse). The core refuses the
     // shift and reports a grind event if the clutch is still engaged.
     auto shift_gear(int32_t p_gear) -> void;
@@ -93,6 +99,8 @@ public:
     [[nodiscard]] auto get_rpm() const -> double;
     [[nodiscard]] auto get_gear() const -> int32_t;
     [[nodiscard]] auto get_speed_kmh() const -> double;
+    // Sideways velocity in the car's frame: the drift. Positive is left.
+    [[nodiscard]] auto get_lateral_speed() const -> double;
     [[nodiscard]] auto is_engine_failed() const -> bool;
     [[nodiscard]] auto get_events() const -> int32_t;
 
