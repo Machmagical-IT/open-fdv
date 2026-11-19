@@ -63,8 +63,11 @@ public:
     static auto box_catch_radius(double p_half_extent, double p_padding) -> double;
 
     // Returns a Vector3 velocity, or Vector3.ZERO if the throw is degenerate.
-    static auto box_throw_dir(godot::Vector3 from, godot::Vector3 to, int64_t p_seed,
-                              double p_gravity) -> godot::Vector3;
+    // `p_carrier_vx`/`p_carrier_vz` are the thrower's horizontal velocity in
+    // world space; 0, 0 is the standing throw and keeps the old arc.
+    static auto box_throw_dir(godot::Vector3 from, godot::Vector3 to,
+                              double p_carrier_vx, double p_carrier_vz,
+                              int64_t p_seed, double p_gravity) -> godot::Vector3;
 
     // Closest claimant wins; ties break on lowest slot. -1 when nobody can.
     static auto box_pick_claimant(godot::Vector3 box, double p_radius, bool p_in_flight,

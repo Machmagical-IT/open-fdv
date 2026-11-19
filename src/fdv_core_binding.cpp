@@ -100,7 +100,9 @@ auto fdv::FdvCore::_bind_methods() -> void {
 
     godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("box_catch_radius", "half_extent", "padding"),
                                        &FdvCore::box_catch_radius);
-    godot::ClassDB::bind_static_method("FdvCore", godot::D_METHOD("box_throw_dir", "from", "to", "seed", "gravity"),
+    godot::ClassDB::bind_static_method("FdvCore",
+                                       godot::D_METHOD("box_throw_dir", "from", "to",
+                                                       "carrier_vx", "carrier_vz", "seed", "gravity"),
                                        &FdvCore::box_throw_dir);
     godot::ClassDB::bind_static_method("FdvCore",
                                        godot::D_METHOD("box_pick_claimant", "box", "radius", "in_flight",
@@ -239,10 +241,13 @@ auto fdv::FdvCore::box_catch_radius(double p_half_extent, double p_padding) -> d
                                                    static_cast<float>(p_padding)));
 }
 
-auto fdv::FdvCore::box_throw_dir(godot::Vector3 from, godot::Vector3 to, int64_t p_seed,
-                                 double p_gravity) -> godot::Vector3 {
+auto fdv::FdvCore::box_throw_dir(godot::Vector3 from, godot::Vector3 to,
+                                 double p_carrier_vx, double p_carrier_vz,
+                                 int64_t p_seed, double p_gravity) -> godot::Vector3 {
     FdVec3 vel{};
     if (!fd_box_throw_dir(from.x, from.y, from.z, to.x, to.y, to.z,
+                          static_cast<float>(p_carrier_vx),
+                          static_cast<float>(p_carrier_vz),
                           static_cast<uint32_t>(p_seed), static_cast<float>(p_gravity), &vel)) {
         return godot::Vector3(0, 0, 0);
     }
