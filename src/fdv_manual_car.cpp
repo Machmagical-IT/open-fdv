@@ -76,11 +76,12 @@ auto fdv::ManualCar::_bind_methods() -> void {
 
 fdv::ManualCar::ManualCar() {
     fd_car_default_tuning(&car_state.tuning);
-    // Matches reset_car(): a car handed to a player is in first gear, not
-    // neutral, so pressing the throttle does something.
-    car_state.gear = FD_GEAR_1;
+    // A car handed over sits in neutral. The old "first gear so the throttle
+    // does something" hid the clutch/gear lesson and made N feel like a
+    // special case; neutral is the honest state of a parked manual van.
+    car_state.gear = FD_GEAR_NEUTRAL;
     car_state.rpm = car_state.tuning.idle_rpm;
-    requested_gear = FD_GEAR_1;
+    requested_gear = FD_GEAR_NEUTRAL;
 }
 
 auto fdv::ManualCar::_ready() -> void {
@@ -166,14 +167,12 @@ auto fdv::ManualCar::reset_car() -> void {
     // The node's rotation is heading + pi; see VehicleSim::kHeadingToNodeYaw.
     car_state.heading = static_cast<float>(get_global_rotation().y
                                            - VehicleSim::kHeadingToNodeYaw);
-    /* First gear, not neutral. A car parked in neutral sits there revving when
-     * the player presses the throttle, which reads as "the car is broken"
-     * rather than "you need to select a gear": nobody gets into a car and
-     * leaves it in neutral. Neutral is still reachable with N, and reverse
-     * with R. */
-    car_state.gear = FD_GEAR_1;
+    /* Neutral, not first gear. The tutorial teaches clutch -> gear -> release
+     * and the HUD shows the gear; starting in first hid that lesson and made
+     * "the car does not move" look like a bug. R and 1-5 are one press away. */
+    car_state.gear = FD_GEAR_NEUTRAL;
     car_state.rpm = car_state.tuning.idle_rpm;
-    requested_gear = FD_GEAR_1;
+    requested_gear = FD_GEAR_NEUTRAL;
     throttle = 0.0;
     steer = 0.0;
     clutch = 0.0;
