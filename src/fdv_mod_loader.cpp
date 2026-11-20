@@ -33,25 +33,32 @@ using VehicleFn = const FdModVehicle *(*)(int32_t);
 using ShutdownFn = void (*)();
 
 #ifdef _WIN32
-using LibraryHandle = HMODULE;
+// The handle is stored as `void *` (Library::handle), which is what the POSIX
+// side has too. Cast at the Win32 calls rather than making the handle type
+// HINSTANCE: HMODULE converts to void* implicitly but not back, so a
+// Windows-only typedef made resolve_symbol()/close_library() unbuildable.
+using LibraryHandle = void *;
 
 auto open_library(const godot::String &p_path) -> LibraryHandle {
     // Godot strings are UTF-16, so hand Windows the wide API directly instead
     // of round-tripping through the local codepage and mangling non-ASCII paths.
     const godot::Char16String wide = p_path.utf16();
-    return LoadLibraryW(reinterpret_cast<LPCWSTR>(wide.get_data()));
+    return static_cast<void *>(LoadLibraryW(reinterpret_cast<LPCWSTR>(wide.get_data())));
 }
 
 auto close_library(LibraryHandle p_handle) -> void {
-    FreeLibrary(p_handle);
+    FreeLibrary(static_cast<HMODULE>(p_handle));
 }
 
 auto library_error() -> godot::String {
-    return "LoadLibrary failed (error %d)" % static_cast<int64_t>(GetLastError());
+    // godot::String has no `%` for a bare int64_t; num_int64 is the documented
+    // way to format one.
+    return godot::String("LoadLibrary failed (error ")
+        + godot::String::num_int64(static_cast<int64_t>(GetLastError())) + ")";
 }
 
 auto resolve_symbol(LibraryHandle p_handle, const char *p_name) -> void * {
-    return reinterpret_cast<void *>(GetProcAddress(p_handle, p_name));
+    return reinterpret_cast<void *>(GetProcAddress(static_cast<HMODULE>(p_handle), p_name));
 }
 #else
 using LibraryHandle = void *;
