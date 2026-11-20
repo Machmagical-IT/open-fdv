@@ -12,6 +12,22 @@
 
 namespace fdv {
 
+// Wrap an angle into (-pi, pi]. A collision's heading delta is applied to the
+// core's bearing, which must stay in the range the simulation expects; without
+// this a second hit can push it past a full turn and the forward vector starts
+// pointing the wrong way relative to the stored angle.
+inline auto wrap_heading(double r) -> double {
+    constexpr double kTwoPi = 6.28318530717958647692;
+    constexpr double kPi = 3.14159265358979323846;
+    r = std::fmod(r, kTwoPi);
+    if (r > kPi) {
+        r -= kTwoPi;
+    } else if (r < -kPi) {
+        r += kTwoPi;
+    }
+    return r;
+}
+
 // The shared, engine-neutral vehicle infrastructure: fixed-step accumulation,
 // static AABB collision, host-authoritative replication, and world->local
 // transform mirroring. Owned by value by VehicleBase (scooter) and ManualCar

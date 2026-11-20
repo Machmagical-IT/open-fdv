@@ -101,6 +101,13 @@ public:
     // swaps vehicles.
     auto adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void;
 
+    // Host-only collision response: subtract loss_mps from forward speed
+    // (clamped at 0), add heading_delta (wrapped) and add lateral_impulse to
+    // the sideways velocity. Position is not touched -- the host's next step
+    // integrates it -- so this cannot teleport the scooter through a wall.
+    auto apply_impact(double p_loss_mps, double p_heading_delta,
+                      double p_lateral_impulse) -> void;
+
     // Static world collision. boxes is an Array of Dictionaries, each
     // {pos: Vector3, size: Vector3, kind: int}.
     auto set_colliders(const godot::Array &p_boxes) -> void;

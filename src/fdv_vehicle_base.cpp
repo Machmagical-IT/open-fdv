@@ -42,6 +42,9 @@ auto fdv::VehicleBase::_bind_methods() -> void {
                                 &VehicleBase::resume_local_simulation);
     godot::ClassDB::bind_method(godot::D_METHOD("adopt_pose", "position", "heading"),
                                 &VehicleBase::adopt_pose);
+    godot::ClassDB::bind_method(
+        godot::D_METHOD("apply_impact", "loss_mps", "heading_delta", "lateral_impulse"),
+        &VehicleBase::apply_impact);
     godot::ClassDB::bind_method(godot::D_METHOD("set_colliders", "boxes"),
                                 &VehicleBase::set_colliders);
     godot::ClassDB::bind_method(godot::D_METHOD("get_collider_count"),
@@ -251,6 +254,20 @@ auto fdv::VehicleBase::adopt_pose(const godot::Vector3 &p_position, double p_hea
     sim.remote = false;
     sim.last_impact = 0.0;
     sim.had_collision = false;
+    sim.mirror_pose(this, vehicle_state.x, vehicle_state.z, vehicle_state.heading);
+}
+
+auto fdv::VehicleBase::apply_impact(double p_loss_mps, double p_heading_delta,
+                                    double p_lateral_impulse) -> void {
+    vehicle_state.speed = static_cast<float>(
+        std::fmax(0.0, static_cast<double>(vehicle_state.speed) - p_loss_mps));
+    vehicle_state.heading = static_cast<float>(wrap_heading(
+        static_cast<double>(vehicle_state.heading) + p_heading_delta));
+    vehicle_state.lateral_speed += static_cast<float>(p_lateral_impulse);
+    speed_kmh = vehicle_state.speed * 3.6;
+    // The position is deliberately untouched: this is a shove, not a
+    // teleport. Re-mirroring the same x/z with the new bearing is what makes
+    // the yaw visible on the frame the host applies it.
     sim.mirror_pose(this, vehicle_state.x, vehicle_state.z, vehicle_state.heading);
 }
 

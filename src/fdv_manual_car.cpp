@@ -69,6 +69,9 @@ auto fdv::ManualCar::_bind_methods() -> void {
     godot::ClassDB::bind_method(godot::D_METHOD("get_had_collision"), &ManualCar::get_had_collision);
     godot::ClassDB::bind_method(godot::D_METHOD("adopt_pose", "position", "heading"),
                                 &ManualCar::adopt_pose);
+    godot::ClassDB::bind_method(
+        godot::D_METHOD("apply_impact", "loss_mps", "heading_delta", "lateral_impulse"),
+        &ManualCar::apply_impact);
 }
 
 fdv::ManualCar::ManualCar() {
@@ -370,6 +373,22 @@ auto fdv::ManualCar::restart_engine() -> void {
     clutch = 0.0;
     speed_kmh = 0.0;
     sim.accum = 0.0;
+}
+
+auto fdv::ManualCar::apply_impact(double p_loss_mps, double p_heading_delta,
+                                  double p_lateral_impulse) -> void {
+    car_state.speed = static_cast<float>(
+        std::fmax(0.0, static_cast<double>(car_state.speed) - p_loss_mps));
+    car_state.heading = static_cast<float>(wrap_heading(
+        static_cast<double>(car_state.heading) + p_heading_delta));
+    car_state.lateral_speed += static_cast<float>(p_lateral_impulse);
+    // Speed readout matches the driving step: the total of forward and
+    // sideways motion, so a spin still registers as speed.
+    const double total = std::sqrt(
+        static_cast<double>(car_state.speed) * car_state.speed +
+        static_cast<double>(car_state.lateral_speed) * car_state.lateral_speed);
+    speed_kmh = (car_state.speed < 0.0f ? -total : total) * 3.6;
+    sim.mirror_pose(this, car_state.x, car_state.z, car_state.heading);
 }
 
 

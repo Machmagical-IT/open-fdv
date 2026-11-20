@@ -121,6 +121,13 @@ public:
     // out, not wherever it was last parked.
     auto adopt_pose(const godot::Vector3 &p_position, double p_heading) -> void;
 
+    // Host-only collision response: subtract loss_mps from forward speed
+    // (clamped at 0), add heading_delta (wrapped) and add lateral_impulse to
+    // the sideways velocity. Position is not touched -- the host's next step
+    // integrates it -- so this cannot teleport the car through a wall.
+    auto apply_impact(double p_loss_mps, double p_heading_delta,
+                      double p_lateral_impulse) -> void;
+
     // Hot refresh: apply a full tuning without touching runtime state (speed,
     // rpm, steering, position, gear). The tuning struct is rewritten in place
     // -- no allocation or zero-initialisation -- so the car keeps driving
