@@ -32,6 +32,8 @@ auto fdv::VehicleBase::_bind_methods() -> void {
                  "set_steer", "get_steer");
 
     godot::ClassDB::bind_method(godot::D_METHOD("get_vehicle_state"), &VehicleBase::get_vehicle_state);
+    godot::ClassDB::bind_method(godot::D_METHOD("get_lateral_speed"),
+                                &VehicleBase::get_lateral_speed);
     godot::ClassDB::bind_method(godot::D_METHOD("get_lean"), &VehicleBase::get_lean);
     godot::ClassDB::bind_method(godot::D_METHOD("step", "delta"), &VehicleBase::step);
     godot::ClassDB::bind_method(godot::D_METHOD("reset_vehicle"), &VehicleBase::reset_vehicle);
@@ -232,6 +234,10 @@ auto fdv::VehicleBase::get_steer() const -> double {
 
 auto fdv::VehicleBase::get_vehicle_state() const -> int32_t {
     return static_cast<int32_t>(vehicle_state.state);
+}
+
+auto fdv::VehicleBase::get_lateral_speed() const -> double {
+    return static_cast<double>(vehicle_state.lateral_speed);
 }
 
 auto fdv::VehicleBase::get_lean() const -> double {

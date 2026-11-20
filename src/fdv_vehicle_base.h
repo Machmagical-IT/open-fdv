@@ -76,6 +76,8 @@ public:
 
     // 0 = upright, 1 = skidding, 2 = flipping, 3 = wrecked.
     [[nodiscard]] auto get_vehicle_state() const -> int32_t;
+    /* Sideways slip, m/s. The box cares about slip, not forward speed. */
+    [[nodiscard]] auto get_lateral_speed() const -> double;
     [[nodiscard]] auto get_lean() const -> double;
 
     // One fixed step. Called by _physics_process at FD_VEH_FIXED_DT; exposed so
