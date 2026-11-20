@@ -401,7 +401,7 @@ auto fdv::FdvCore::monster_step(godot::Dictionary m, godot::PackedVector3Array p
                      * behind, which is the one counter-play the design wants.
                      * Proximity 12 m ignores the cone entirely: that is the
                      * radius at which something this loud already knows. */
-                    30.0f, 1.0f, 6.0f, static_cast<float>(p_dt));
+                    16.0f, 0.65f, 4.0f, static_cast<float>(p_dt));
 
     godot::Dictionary d;
     d["x"] = mon.x;
